@@ -29,7 +29,7 @@ public class User {
     }
 
     public void printInfo() {
-        System.out.println("ФИО: " + lastName + firstName + middleName);
+        System.out.println("ФИО: " + lastName + ' ' + firstName + ' ' + middleName);
         System.out.println("Год рождения: " + birthYear);
         System.out.println("e-mail: " + email);
     }

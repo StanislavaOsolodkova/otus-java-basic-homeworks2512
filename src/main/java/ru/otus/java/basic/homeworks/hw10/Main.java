@@ -17,10 +17,14 @@ public class Main {
 
         System.out.println("=== ПОЛЬЗОВАТЕЛИ СТАРШЕ 40 ЛЕТ ===\n");
 
+        int currentYear = java.time.Year.now().getValue();
+
         for (int i = 0; i < users.length; i++) {
             User currentUser = users[i];
-            if (currentUser.getBirthYear() > 40) {
+            int age = currentYear - currentUser.getBirthYear();
+            if (age > 40) {
                 currentUser.printInfo();
+                System.out.println();
             }
         }
     }
