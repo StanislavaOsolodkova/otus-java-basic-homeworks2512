@@ -54,3 +54,4 @@ abstract class Animal {
         return isTired;
     }
 }
+

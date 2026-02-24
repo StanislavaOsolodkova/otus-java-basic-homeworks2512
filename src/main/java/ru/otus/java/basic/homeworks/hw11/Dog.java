@@ -25,3 +25,4 @@ class Dog extends Animal {
         return time;
     }
 }
+

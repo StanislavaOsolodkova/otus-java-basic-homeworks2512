@@ -25,3 +25,4 @@ class Horse extends Animal {
         return time;
     }
 }
+

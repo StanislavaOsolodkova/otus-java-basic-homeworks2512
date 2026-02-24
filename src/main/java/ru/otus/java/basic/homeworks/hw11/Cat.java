@@ -11,3 +11,4 @@ class Cat extends Animal {
         return -1f;
     }
 }
+
