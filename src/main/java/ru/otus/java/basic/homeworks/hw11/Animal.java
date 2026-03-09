@@ -16,15 +16,19 @@ abstract class Animal {
     }
 
     public float run(int distance) {
+        if (distance <= 0) {
+            System.out.println("Ошибка, тк расстояние должно быть положительным");
+        return -1f;
+    }
         if (isTired) {
             System.out.println(name + " устал(а) и не может бежать!");
-            return -1;
+            return -1f;
         }
 
         if (endurance < distance) {
             isTired = true;
             System.out.println(name + " не хватило выносливости на дистанцию " + distance + " м");
-            return -1;
+            return -1f;
         }
 
         endurance -= distance;
@@ -33,9 +37,38 @@ abstract class Animal {
         return time;
     }
 
+    protected abstract int getSwimEnduranceCostPerMeter();
+    protected boolean canSwim() {
+        return swimSpeed > 0;
+    }
+
     public float swim(int distance) {
-        System.out.println(name + " не умеет плавать");
-        return -1;
+        if (distance <= 0) {
+            System.out.println("Ошибка, тк расстояние должно быть положительным.");
+            return -1f;
+        }
+
+        if (!canSwim()) {
+            System.out.println(name + " не умеет плавать");
+            return -1f;
+        }
+
+        if (isTired) {
+            System.out.println(name + " устал(а) и не может плыть!");
+            return -1f;
+        }
+
+        int staminaCost = distance * getSwimEnduranceCostPerMeter();
+        if (endurance < staminaCost) {
+            isTired = true;
+            System.out.println(name + " не хватило выносливости проплыть " + distance + " м");
+            return -1f;
+        }
+
+        endurance -= staminaCost;
+        float time = distance / swimSpeed;
+        System.out.println(name + " проплыл(а) " + distance + " м за " + String.format("%.2f", time) + " сек");
+        return time;
     }
 
     public void info() {

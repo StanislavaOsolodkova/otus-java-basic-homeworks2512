@@ -6,9 +6,17 @@ class Cat extends Animal {
     }
 
     @Override
-    public float swim(int distance) {
-        System.out.println(name + " не умеет плавать.");
-        return -1f;
+    protected int getSwimEnduranceCostPerMeter() {
+        return 0; // Значение не важно, т.к. canSwim() вернет false
+    }
+
+    @Override
+    protected boolean canSwim() {
+        return false;
+    }
+
+    public void purr() {
+        System.out.println(name + " мурлычет: Мур-мур-мур!");
     }
 }
 
