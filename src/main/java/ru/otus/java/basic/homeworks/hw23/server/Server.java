@@ -46,11 +46,27 @@ public class Server {
     }
 
     public ClientHandler getClientByUsername(String username) {
-        for (ClientHandler client : clients) {
-            if (client.getUsername().equals(username)) {
-                return client;
+        for (ClientHandler c : clients) {
+            if (c.getUsername().equals(username)) {
+                return c;
             }
         }
         return null;
+    }
+
+    /**
+     * Отключает пользователя по нику (вызывается администратором).
+     * @param username ник кикаемого пользователя
+     * @return true, если пользователь был найден и отключён, иначе false
+     */
+    public boolean kickUser(String username) {
+        ClientHandler target = getClientByUsername(username);
+        if (target != null) {
+            target.sendMsg("You have been kicked by admin");
+            target.sendMsg("/exitok");  // чтобы клиент закрылся корректно
+            target.disconnect();
+            return true;
+        }
+        return false;
     }
 }

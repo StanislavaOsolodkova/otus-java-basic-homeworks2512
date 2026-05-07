@@ -12,6 +12,7 @@ public class ClientHandler {
     private DataOutputStream out;
 
     private String username;
+    private String role;   // "ADMIN" или "USER"
 
     public ClientHandler(Server server, Socket socket) throws IOException {
         this.server = server;
@@ -20,7 +21,15 @@ public class ClientHandler {
         this.out = new DataOutputStream(socket.getOutputStream());
         System.out.println("Client connected port:" + socket.getPort());
         username = "user" + socket.getPort();
-        sendMsg("Вы подключились под ником: " + username);
+
+        // Назначаем роль: ник "admin" -> ADMIN, остальным USER
+        if ("admin".equalsIgnoreCase(username)) {
+            role = "ADMIN";
+        } else {
+            role = "USER";
+        }
+
+        sendMsg("Вы подключились под ником: " + username + " (роль: " + role + ")");
 
         new Thread(() -> {
             try {
@@ -43,6 +52,23 @@ public class ClientHandler {
                                     sendMsg("[Private to " + targetNick + "] " + username + ": " + privateMessage);
                                 } else {
                                     sendMsg("Пользователь '" + targetNick + "' не найден");
+                                }
+                            }
+                        } else if (message.startsWith("/kick ")) {
+                            // Формат: /kick username
+                            if (!"ADMIN".equals(role)) {
+                                sendMsg("Недостаточно прав для выполнения команды /kick");
+                            } else {
+                                String[] parts = message.split(" ", 2);
+                                if (parts.length < 2) {
+                                    sendMsg("Неверный формат. Используйте: /kick <username>");
+                                } else {
+                                    String userToKick = parts[1];
+                                    if (server.kickUser(userToKick)) {
+                                        sendMsg("Пользователь " + userToKick + " отключён.");
+                                    } else {
+                                        sendMsg("Пользователь '" + userToKick + "' не найден.");
+                                    }
                                 }
                             }
                         } else {
@@ -76,7 +102,11 @@ public class ClientHandler {
         this.username = username;
     }
 
-    private void disconnect() {
+    public String getRole() {
+        return role;
+    }
+
+    public void disconnect() {
         server.unsubscribe(this);
         System.out.println("Client disconnected port:" + socket.getPort());
         try {
