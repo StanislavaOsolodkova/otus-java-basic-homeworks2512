@@ -1,0 +1,134 @@
+-- Таблица тестов
+CREATE TABLE tests (
+    id          SERIAL PRIMARY KEY,
+    title       VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Таблица вопросов
+CREATE TABLE questions (
+    id            SERIAL PRIMARY KEY,
+    test_id       INTEGER NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+    question_text TEXT NOT NULL,
+    sort_order    INTEGER NOT NULL DEFAULT 0, -- порядок в тесте
+    UNIQUE (test_id, sort_order)             -- при необходимости можно убрать
+);
+
+-- Таблица вариантов ответа
+CREATE TABLE answer_options (
+    id          SERIAL PRIMARY KEY,
+    question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+    answer_text TEXT NOT NULL,
+    is_correct  BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- Индексы для ускорения
+CREATE INDEX idx_questions_test_id ON questions(test_id);
+CREATE INDEX idx_answer_options_question_id ON answer_options(question_id);
+CREATE INDEX idx_answer_options_correct ON answer_options(question_id, is_correct);
+
+-- ============================================================
+-- Триггерные функции для обеспечения бизнес-правил
+-- ============================================================
+
+-- Функция: проверка количества вариантов ответа (от 2 до 5) для вопроса
+CREATE OR REPLACE FUNCTION check_answer_count()
+RETURNS TRIGGER AS $$
+DECLARE
+    cnt INTEGER;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        SELECT COUNT(*) INTO cnt FROM answer_options WHERE question_id = OLD.question_id;
+    ELSE
+        SELECT COUNT(*) INTO cnt FROM answer_options WHERE question_id = NEW.question_id;
+    END IF;
+
+    IF cnt < 2 OR cnt > 5 THEN
+        RAISE EXCEPTION 'Вопрос id=% должен содержать от 2 до 5 вариантов ответа, обнаружено %',
+                        COALESCE(NEW.question_id, OLD.question_id), cnt;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Привязываем триггер к таблице answer_options
+CREATE CONSTRAINT TRIGGER trg_answer_count
+AFTER INSERT OR UPDATE OR DELETE ON answer_options
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_answer_count();
+
+-- Функция: ровно один правильный ответ на вопрос
+CREATE OR REPLACE FUNCTION check_single_correct()
+RETURNS TRIGGER AS $$
+DECLARE
+    correct_count INTEGER;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        SELECT COUNT(*) INTO correct_count FROM answer_options
+        WHERE question_id = OLD.question_id AND is_correct = TRUE;
+    ELSE
+        SELECT COUNT(*) INTO correct_count FROM answer_options
+        WHERE question_id = NEW.question_id AND is_correct = TRUE;
+    END IF;
+
+    IF correct_count != 1 THEN
+        RAISE EXCEPTION 'Вопрос id=% должен иметь ровно 1 правильный ответ, обнаружено %',
+                        COALESCE(NEW.question_id, OLD.question_id), correct_count;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_single_correct
+AFTER INSERT OR UPDATE OR DELETE ON answer_options
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_single_correct();
+
+-- ============================================================
+CREATE VIEW test_full AS
+SELECT t.id AS test_id, t.title AS test_title,
+       q.id AS question_id, q.question_text, q.sort_order,
+       a.id AS option_id, a.answer_text, a.is_correct
+FROM tests t
+JOIN questions q ON q.test_id = t.id
+JOIN answer_options a ON a.question_id = q.id
+ORDER BY t.id, q.sort_order, a.id;
+
+-- ============================================================
+
+BEGIN;
+
+INSERT INTO tests (title, description)
+VALUES ('Тест по PostgreSQL', 'Базовые вопросы по SQL и архитектуре');
+
+-- Вопрос 1
+INSERT INTO questions (test_id, question_text, sort_order)
+VALUES (1, 'Какой тип JOIN возвращает только совпадающие строки?', 1);
+INSERT INTO answer_options (question_id, answer_text, is_correct) VALUES
+(1, 'LEFT JOIN', FALSE),
+(1, 'RIGHT JOIN', FALSE),
+(1, 'INNER JOIN', TRUE),
+(1, 'FULL OUTER JOIN', FALSE);
+
+-- Вопрос 2
+INSERT INTO questions (test_id, question_text, sort_order)
+VALUES (1, 'Какая команда используется для удаления таблицы?', 2);
+INSERT INTO answer_options (question_id, answer_text, is_correct) VALUES
+(2, 'DELETE TABLE', FALSE),
+(2, 'DROP TABLE', TRUE),
+(2, 'REMOVE TABLE', FALSE);
+
+-- Вопрос 3 (ровно 5 вариантов)
+INSERT INTO questions (test_id, question_text, sort_order)
+VALUES (1, 'Какие из перечисленных являются СУБД?', 3);
+INSERT INTO answer_options (question_id, answer_text, is_correct) VALUES
+(3, 'PostgreSQL', TRUE),
+(3, 'SQLite', FALSE),
+(3, 'MongoDB', FALSE),
+(3, 'Redis', FALSE),
+(3, 'Oracle', FALSE);
+
+COMMIT;
