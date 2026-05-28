@@ -21,10 +21,11 @@ public class Dispatcher {
     }
 
     public void execute(HttpRequest request, OutputStream output) throws IOException {
-        if (!processors.containsKey(request.getRoutingKey())) {
-            defaultNotFoundRequestProcessor.execute(request, output);
-            return;
-        }
-        processors.get(request.getRoutingKey()).execute(request, output);
+        RequestProcessor processor = processors.getOrDefault(
+                request.getRoutingKey(),
+                defaultNotFoundRequestProcessor
+        );
+        HttpResponse response = processor.process(request);
+        response.write(output);
     }
 }
